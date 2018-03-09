@@ -25,8 +25,8 @@ COMMUNICATION STRUCTURE:
 
   AXES:
 
-    X: Forwards and backwards.
-    Y: Left and right.
+    X: Left and right.
+    Y: Forwards and backwards.
     Z: Up and down.
     R: Rotate left and right.
     P: Pitch forwards and backwards.
@@ -40,8 +40,8 @@ COMMUNICATION STRUCTURE:
 #include <SPI.h>
 
 //Pins for connecting MAX485 to.
-#define MAXRX 5
-#define MAXTX 6
+#define MAXRXPin 5
+#define MAXTXPin 6
 #define MAXControl 3
 
 //Some constants to make serial direction control easier.
@@ -53,7 +53,7 @@ USB Usb;
 XBOXUSB Xbox(&Usb);
 
 //Actual serial object.
-SoftwareSerial MAX(MAXRX, MAXTX);
+SoftwareSerial MAX(MAXRXPin, MAXTXPin);
 
 boolean autoLevelOn = true;
 
@@ -70,16 +70,34 @@ void loop(){
   Usb.Task();
   if(Xbox.Xbox360Connected) {
     alignChannel();
-    
+
+    //Check each of our inputs, and it there's anything cool there send it down.
+    //This could be very nicely generalized but I'm not a very nice general.
+
+    //Jack wants rotation on this one.
+    readAndSendAnalogHat(LeftHatX, 'R');
+    //I'm told this should run up/down.
+    readAndSendAnalogHat(LeftHatY, 'Z');
+    //Right stick is all planar controls.
+    readAndSendAnalogHat(RightHatX, 'X');
+    readAndSendAnalogHat(RightHatY, 'Y');
   }
   delay(10);
+}
+
+void readAndSendAnalogHat(AnalogHatEnum a, char channel){
+  int value = Xbox.getAnalogHat(a);
+    if(value > 8000 || value < -8000){
+      byte mapped = map(value, -32768, 32768, 0, 255);
+      sendCommand(channel, mapped);
+    }
 }
 
 void alignChannel () {
   //Send a long string of 0s for reciever to check for, ensuring our communications are
   //properly aligned. Any more than 2 should work.
   for(int i = 0; i < 5; i++){
-    MAX.write(0);
+    MAX.write((byte)0);
     delay(1);
   }
 }
@@ -87,6 +105,6 @@ void alignChannel () {
 void sendCommand (char axis, byte value) {
   //Just exists for convenience really.
   MAX.write(axis);
-  Max.write(value);
+  MAX.write(value);
 }
 
