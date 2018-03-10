@@ -31,7 +31,7 @@ COMMUNICATION STRUCTURE:
     R: Rotate left and right.
     P: Pitch forwards and backwards.
     C: Open and close claw.
-    G: Enable/disable auto level (should only ever be sent a 0 or a 1.
+    G: Enable/disable auto level (should only ever be sent a 0 or a 1).
 
 */
 
@@ -81,16 +81,32 @@ void loop(){
     //Right stick is all planar controls.
     readAndSendAnalogHat(RightHatX, 'X');
     readAndSendAnalogHat(RightHatY, 'Y');
+    //The triggers work subtracted from each other to actuate the claw.
+    readAndSendSubtractiveTriggers('C');
   }
   delay(10);
 }
 
 void readAndSendAnalogHat(AnalogHatEnum a, char channel){
+  //Read an analog hat, map it, and transmit it.
+  //If it falls in the buffer zone, send 128 (the middle value).
   int value = Xbox.getAnalogHat(a);
     if(value > 8000 || value < -8000){
       byte mapped = map(value, -32768, 32768, 0, 255);
       sendCommand(channel, mapped);
+    }else{
+      sendCommand(channel, 128);
     }
+}
+
+void readAndSendSubtractiveTriggers(char channel){
+  //Read the trigger values and use them to find the common value, then send it.
+  byte l = Xbox.getButtonPress(L2);
+  byte r = Xbox.getButtonPress(R2);
+  l = map(l, 0, 255, 0, 127);
+  r = map(r, 0, 255, 0, 127);
+  byte ret = (128 + r - l);
+  sendCommand(channel, ret);
 }
 
 void alignChannel () {
