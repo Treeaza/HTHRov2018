@@ -48,7 +48,7 @@ COMMUNICATION STRUCTURE:
 #define MAXTX HIGH
 #define MAXRX LOW
 
-//USB object to connect the shield, then use is to connect XBOX controller.
+//USB object to connect the shield, then use it to connect XBOX controller.
 USB Usb;
 XBOXUSB Xbox(&Usb);
 
