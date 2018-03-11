@@ -55,7 +55,7 @@ XBOXUSB Xbox(&Usb);
 //Actual serial object.
 SoftwareSerial MAX(MAXRXPin, MAXTXPin);
 
-boolean autoLevelOn = true;
+bool autoLevelOn = true;
 
 void setup(){
   //Set 485 to transmit. We never actually need to recieve, but it's nice to have the option.
@@ -83,8 +83,45 @@ void loop(){
     readAndSendAnalogHat(RightHatY, 'Y');
     //The triggers work subtracted from each other to actuate the claw.
     readAndSendSubtractiveTriggers('C');
+    
+    if(Xbox.getButtonClick(A)){
+      autoLevelOn = !autoLevelOn;
+    }
+
+    bool up = Xbox.getButtonPress(UP);
+    bool down = Xbox.getButtonPress(DOWN);
+    
+    char tiltOneZero = up - down;
+    byte tilt = map(tiltOneZero, -1, 1, 0, 255);
+
+    sendCommand('P', tilt);
+
+    if(up || down){
+      sendCommand('G', 0);
+      setAutoLevelDisplay(false);
+    }else{
+      sendCommand('G', autoLevelOn);
+      setAutoLevelDisplay(autoLevelOn);
+    }
+    
   }
   delay(10);
+}
+
+bool previousDisplay = false;
+
+void setAutoLevelDisplay(bool on){
+  if(on != previousDisplay){
+    Xbox.setLedOff();
+    if(on){
+      Xbox.setLedOn(LED1);
+      Xbox.setLedOn(LED2);
+    }else{
+      Xbox.setLedOn(LED3);
+      Xbox.setLedOn(LED4);
+    }
+    previousDisplay = on;
+  }
 }
 
 void readAndSendAnalogHat(AnalogHatEnum a, char channel){
