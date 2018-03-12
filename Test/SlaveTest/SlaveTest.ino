@@ -16,6 +16,7 @@ void setup(){
   pinMode(SSerialTxControl, OUTPUT);
   digitalWrite(SSerialTxControl, RS485Receive);
   RS485Serial.begin(4800);
+  Serial.begin(9600);
 }
 
 void loop(){
@@ -23,8 +24,8 @@ void loop(){
     byte r;
     while(RS485Serial.available()){
       r = RS485Serial.read();
+      Serial.println(r);
     }
-    analogWrite(LED, r);
   }
   delay(10);
 }

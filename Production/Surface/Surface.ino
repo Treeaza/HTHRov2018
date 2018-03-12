@@ -19,19 +19,19 @@ PINOUT:
 
 COMMUNICATION STRUCTURE:
 
-  We can only read one byte at a time, so we send down a character represtenting
+  We can only read one byte at a time, so we send down a byte represtenting
   the axis we wish to move in, then the value as a second unsigned byte. Sorting out how to use
   that information is the ROV Arduino's job.
 
   AXES:
 
-    X: Left and right.
-    Y: Forwards and backwards.
-    Z: Up and down.
-    R: Rotate left and right.
-    P: Pitch forwards and backwards.
-    C: Open and close claw.
-    G: Enable/disable auto level (should only ever be sent a 0 or a 1).
+    1: Left and right.
+    2: Forwards and backwards.
+    3: Up and down.
+    4: Rotate left and right.
+    5: Pitch forwards and backwards.
+    6: Open and close claw.
+    7: Enable/disable auto level (should only ever be sent a 0 or a 1).
 
 */
 
@@ -58,31 +58,35 @@ SoftwareSerial MAX(MAXRXPin, MAXTXPin);
 bool autoLevelOn = true;
 
 void setup(){
+  Serial.begin(9600);
   //Set 485 to transmit. We never actually need to recieve, but it's nice to have the option.
   pinMode(MAXControl, OUTPUT);
   digitalWrite(MAXControl, MAXTX);
   //Start the connection. Baud rate doesn't really matter that much here.
   MAX.begin(4800);
+  if (Usb.Init() == -1) {
+    while (1);
+  }
 }
 
 void loop(){
   //Does...something with the shield? I've yet to work out exactly what, but it's important.
   Usb.Task();
   if(Xbox.Xbox360Connected) {
-    alignChannel();
+    //alignChannel();
 
     //Check each of our inputs, and it there's anything cool there send it down.
     //This could be very nicely generalized but I'm not a very nice general.
 
     //Jack wants rotation on this one.
-    readAndSendAnalogHat(LeftHatX, 'R');
+    readAndSendAnalogHat(LeftHatX, 4);
     //I'm told this should run up/down.
-    readAndSendAnalogHat(LeftHatY, 'Z');
+    readAndSendAnalogHat(LeftHatY, 3);
     //Right stick is all planar controls.
-    readAndSendAnalogHat(RightHatX, 'X');
-    readAndSendAnalogHat(RightHatY, 'Y');
+    readAndSendAnalogHat(RightHatX, 1);
+    readAndSendAnalogHat(RightHatY, 2);
     //The triggers work subtracted from each other to actuate the claw.
-    readAndSendSubtractiveTriggers('C');
+    readAndSendSubtractiveTriggers(6);
     
     if(Xbox.getButtonClick(A)){
       autoLevelOn = !autoLevelOn;
@@ -94,13 +98,13 @@ void loop(){
     char tiltOneZero = up - down;
     byte tilt = map(tiltOneZero, -1, 1, 0, 255);
 
-    sendCommand('P', tilt);
+    sendCommand(5, tilt);
 
     if(up || down){
-      sendCommand('G', 0);
+      sendCommand(7, 0);
       setAutoLevelDisplay(false);
     }else{
-      sendCommand('G', autoLevelOn);
+      sendCommand(7, autoLevelOn);
       setAutoLevelDisplay(autoLevelOn);
     }
     
@@ -115,16 +119,14 @@ void setAutoLevelDisplay(bool on){
     Xbox.setLedOff();
     if(on){
       Xbox.setLedOn(LED1);
-      Xbox.setLedOn(LED2);
     }else{
       Xbox.setLedOn(LED3);
-      Xbox.setLedOn(LED4);
     }
     previousDisplay = on;
   }
 }
 
-void readAndSendAnalogHat(AnalogHatEnum a, char channel){
+void readAndSendAnalogHat(AnalogHatEnum a, byte channel){
   //Read an analog hat, map it, and transmit it.
   //If it falls in the buffer zone, send 128 (the middle value).
   int value = Xbox.getAnalogHat(a);
@@ -136,7 +138,7 @@ void readAndSendAnalogHat(AnalogHatEnum a, char channel){
     }
 }
 
-void readAndSendSubtractiveTriggers(char channel){
+void readAndSendSubtractiveTriggers(byte channel){
   //Read the trigger values and use them to find the common value, then send it.
   byte l = Xbox.getButtonPress(L2);
   byte r = Xbox.getButtonPress(R2);
@@ -149,15 +151,16 @@ void readAndSendSubtractiveTriggers(char channel){
 void alignChannel () {
   //Send a long string of 0s for reciever to check for, ensuring our communications are
   //properly aligned. Any more than 2 should work.
-  for(int i = 0; i < 5; i++){
+  for(int i = 0; i < 3; i++){
     MAX.write((byte)0);
-    delay(1);
   }
 }
 
-void sendCommand (char axis, byte value) {
+void sendCommand (byte axis, byte value) {
   //Just exists for convenience really.
   MAX.write(axis);
+  delay(1);
   MAX.write(value);
+  delay(1);
 }
 
