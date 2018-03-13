@@ -7,12 +7,9 @@
 #define RS485Transmit HIGH
 #define RS485Receive LOW
 
-#define LED 5
-
 SoftwareSerial RS485Serial(SSerialRX, SSerialTX);
 
 void setup(){
-  pinMode(LED, OUTPUT);
   pinMode(SSerialTxControl, OUTPUT);
   digitalWrite(SSerialTxControl, RS485Receive);
   RS485Serial.begin(4800);
@@ -27,6 +24,6 @@ void loop(){
       Serial.println(r);
     }
   }
-  delay(10);
+  delay(5);
 }
 

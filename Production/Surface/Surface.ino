@@ -73,7 +73,7 @@ void loop(){
   //Does...something with the shield? I've yet to work out exactly what, but it's important.
   Usb.Task();
   if(Xbox.Xbox360Connected) {
-    //alignChannel();
+    alignChannel();
 
     //Check each of our inputs, and it there's anything cool there send it down.
     //This could be very nicely generalized but I'm not a very nice general.
@@ -104,7 +104,7 @@ void loop(){
       sendCommand(7, 0);
       setAutoLevelDisplay(false);
     }else{
-      sendCommand(7, autoLevelOn);
+      sendCommand(7, autoLevelOn? 1: 0);
       setAutoLevelDisplay(autoLevelOn);
     }
     
@@ -151,8 +151,9 @@ void readAndSendSubtractiveTriggers(byte channel){
 void alignChannel () {
   //Send a long string of 0s for reciever to check for, ensuring our communications are
   //properly aligned. Any more than 2 should work.
-  for(int i = 0; i < 3; i++){
+  for(int i = 0; i < 4; i++){
     MAX.write((byte)0);
+    delay(1);
   }
 }
 
