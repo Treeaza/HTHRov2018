@@ -21,9 +21,20 @@ void loop(){
     byte r;
     while(RS485Serial.available()){
       r = RS485Serial.read();
-      Serial.println(r);
+      if(r == 0){
+        process(RS485Serial.read(), RS485Serial.read());
+      }
+      //Serial.println(r);
     }
+    Serial.println("End of backlog");
   }
   delay(5);
+}
+
+void process(byte a, byte b){
+  if(a == 0 || b == 0 || b > 7)
+    return;
+  Serial.println(b);
+  Serial.println(a);
 }
 

@@ -31,7 +31,8 @@ COMMUNICATION STRUCTURE:
     4: Rotate left and right.
     5: Pitch forwards and backwards.
     6: Open and close claw.
-    7: Enable/disable auto level (should only ever be sent a 0 or a 1).
+    7: Enable/disable auto level (should only ever be sent a 1 or a 2).
+    8: Open and close claw 2.
 
 */
 
@@ -47,6 +48,9 @@ COMMUNICATION STRUCTURE:
 //Some constants to make serial direction control easier.
 #define MAXTX HIGH
 #define MAXRX LOW
+
+#define CHANNELS 8
+#define LASTSENTRESETCOUNT 30
 
 //USB object to connect the shield, then use it to connect XBOX controller.
 USB Usb;
@@ -69,12 +73,26 @@ void setup(){
   }
 }
 
+int lastSentResetCounter = LASTSENTRESETCOUNT;
+
+bool claw = false;
+
+byte lastSent[CHANNELS] = {0, 0, 0, 0, 0, 0, 0, 0};
+
 void loop(){
   //Does...something with the shield? I've yet to work out exactly what, but it's important.
   Usb.Task();
   if(Xbox.Xbox360Connected) {
-    alignChannel();
 
+    //Periodically reset lastSent, to ensure fresh info every few seconds at least.
+    lastSentResetCounter--;
+    if(lastSentResetCounter <= 0){
+      for(int i = 0; i < CHANNELS; i++){
+        lastSent[i] = 0;
+      }
+      lastSentResetCounter = LASTSENTRESETCOUNT;
+    }
+    
     //Check each of our inputs, and it there's anything cool there send it down.
     //This could be very nicely generalized but I'm not a very nice general.
 
@@ -85,31 +103,36 @@ void loop(){
     //Right stick is all planar controls.
     readAndSendAnalogHat(RightHatX, 1);
     readAndSendAnalogHat(RightHatY, 2);
+    
     //The triggers work subtracted from each other to actuate the claw.
-    readAndSendSubtractiveTriggers(6);
+    readAndSendSubtractiveTriggers(claw? 6: 8);
     
     if(Xbox.getButtonClick(A)){
       autoLevelOn = !autoLevelOn;
+    }
+
+    if(Xbox.getButtonClick(X)){
+      claw = !claw;
     }
 
     bool up = Xbox.getButtonPress(UP);
     bool down = Xbox.getButtonPress(DOWN);
     
     char tiltOneZero = up - down;
-    byte tilt = map(tiltOneZero, -1, 1, 0, 255);
+    byte tilt = map(tiltOneZero, -1, 1, 1, 255);
 
     sendCommand(5, tilt);
 
     if(up || down){
-      sendCommand(7, 0);
+      sendCommand(7, 1);
       setAutoLevelDisplay(false);
     }else{
-      sendCommand(7, autoLevelOn? 1: 0);
+      sendCommand(7, autoLevelOn? 2: 1);
       setAutoLevelDisplay(autoLevelOn);
     }
     
   }
-  delay(10);
+  delay(15);
 }
 
 bool previousDisplay = false;
@@ -131,7 +154,7 @@ void readAndSendAnalogHat(AnalogHatEnum a, byte channel){
   //If it falls in the buffer zone, send 128 (the middle value).
   int value = Xbox.getAnalogHat(a);
     if(value > 8000 || value < -8000){
-      byte mapped = map(value, -32768, 32768, 0, 255);
+      byte mapped = map(value, -32768, 32768, 1, 255);
       sendCommand(channel, mapped);
     }else{
       sendCommand(channel, 128);
@@ -150,7 +173,7 @@ void readAndSendSubtractiveTriggers(byte channel){
 
 void alignChannel () {
   //Send a long string of 0s for reciever to check for, ensuring our communications are
-  //properly aligned. Any more than 2 should work.
+  //properly aligned. Any more than 2 should work. I think.
   for(int i = 0; i < 4; i++){
     MAX.write((byte)0);
     delay(1);
@@ -159,9 +182,19 @@ void alignChannel () {
 
 void sendCommand (byte axis, byte value) {
   //Just exists for convenience really.
+  //There cannot be a 0 axis, so this is invalid.
+  //And we can't send 0 here.
+  if(axis == 0 || value == 0)
+    return;
+
+  //To avoid clogging up the system with redundant information.
+  if(lastSent[axis] == value)
+    return;
+  
+  MAX.write((byte)0);
+  delay(1);
   MAX.write(axis);
   delay(1);
   MAX.write(value);
-  delay(1);
 }
 
