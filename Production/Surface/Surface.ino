@@ -40,6 +40,16 @@ COMMUNICATION STRUCTURE:
 #include <XBOXUSB.h>
 #include <SPI.h>
 
+//Channel definitions:
+#define CHANNELLR 1
+#define CHANNELFB 2
+#define CHANNELUD 3
+#define CHANNELROTATION 4
+#define CHANNELPITCH 5
+#define CHANNELCLAWONE 6
+#define CHANNELAUTOLEVEL 7
+#define CHANNELCLAWTWO 8
+
 //Pins for connecting MAX485 to.
 #define MAXRXPin 5
 #define MAXTXPin 6
@@ -77,7 +87,7 @@ int lastSentResetCounter = LASTSENTRESETCOUNT;
 
 bool claw = false;
 
-byte lastSent[CHANNELS] = {0, 0, 0, 0, 0, 0, 0, 0};
+byte lastSent[] = {0, 0, 0, 0, 0, 0, 0, 0, 0};
 
 void loop(){
   //Does...something with the shield? I've yet to work out exactly what, but it's important.
@@ -97,24 +107,27 @@ void loop(){
     //This could be very nicely generalized but I'm not a very nice general.
 
     //Jack wants rotation on this one.
-    readAndSendAnalogHat(LeftHatX, 4);
+    readAndSendAnalogHat(LeftHatX, CHANNELROTATION);
     //I'm told this should run up/down.
-    readAndSendAnalogHat(LeftHatY, 3);
+    readAndSendAnalogHat(LeftHatY, CHANNELUD);
     //Right stick is all planar controls.
-    readAndSendAnalogHat(RightHatX, 1);
-    readAndSendAnalogHat(RightHatY, 2);
+    readAndSendAnalogHat(RightHatX, CHANNELLR);
+    readAndSendAnalogHat(RightHatY, CHANNELFB);
     
     //The triggers work subtracted from each other to actuate the claw.
-    readAndSendSubtractiveTriggers(claw? 6: 8);
-    
+    readAndSendSubtractiveTriggers(claw? CHANNELCLAWONE: CHANNELCLAWTWO);
+
+    //Change auto level mode.
     if(Xbox.getButtonClick(A)){
       autoLevelOn = !autoLevelOn;
     }
 
+    //Change which claw is being controlled.
     if(Xbox.getButtonClick(X)){
       claw = !claw;
     }
 
+    //Tilting and autolevel.
     bool up = Xbox.getButtonPress(UP);
     bool down = Xbox.getButtonPress(DOWN);
     
@@ -124,10 +137,10 @@ void loop(){
     sendCommand(5, tilt);
 
     if(up || down){
-      sendCommand(7, 1);
+      sendCommand(CHANNELAUTOLEVEL, 1);
       setAutoLevelDisplay(false);
     }else{
-      sendCommand(7, autoLevelOn? 2: 1);
+      sendCommand(CHANNELAUTOLEVEL, autoLevelOn? 2: 1);
       setAutoLevelDisplay(autoLevelOn);
     }
     
