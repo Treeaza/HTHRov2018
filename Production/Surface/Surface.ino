@@ -72,8 +72,8 @@ SoftwareSerial MAX(MAXRXPin, MAXTXPin);
 bool autoLevelOn = true;
 
 void setup(){
-  Serial.begin(9600);
   //Set 485 to transmit. We never actually need to recieve, but it's nice to have the option.
+  Serial.begin(9600);
   pinMode(MAXControl, OUTPUT);
   digitalWrite(MAXControl, MAXTX);
   //Start the connection. Baud rate doesn't really matter that much here.
@@ -93,7 +93,6 @@ void loop(){
   //Does...something with the shield? I've yet to work out exactly what, but it's important.
   Usb.Task();
   if(Xbox.Xbox360Connected) {
-
     //Periodically reset lastSent, to ensure fresh info every few seconds at least.
     lastSentResetCounter--;
     if(lastSentResetCounter <= 0){
@@ -158,6 +157,7 @@ void setAutoLevelDisplay(bool on){
     }else{
       Xbox.setLedOn(LED3);
     }
+      Serial.println("ftb");
     previousDisplay = on;
   }
 }
@@ -167,7 +167,7 @@ void readAndSendAnalogHat(AnalogHatEnum a, byte channel){
   //If it falls in the buffer zone, send 128 (the middle value).
   int value = Xbox.getAnalogHat(a);
     if(value > 8000 || value < -8000){
-      byte mapped = map(value, -32768, 32768, 1, 255);
+      byte mapped = map(value, -32768, 32768, 1, 254);
       sendCommand(channel, mapped);
     }else{
       sendCommand(channel, 128);
@@ -184,15 +184,6 @@ void readAndSendSubtractiveTriggers(byte channel){
   sendCommand(channel, ret);
 }
 
-void alignChannel () {
-  //Send a long string of 0s for reciever to check for, ensuring our communications are
-  //properly aligned. Any more than 2 should work. I think.
-  for(int i = 0; i < 4; i++){
-    MAX.write((byte)0);
-    delay(1);
-  }
-}
-
 void sendCommand (byte axis, byte value) {
   //Just exists for convenience really.
   //There cannot be a 0 axis, so this is invalid.
@@ -203,6 +194,10 @@ void sendCommand (byte axis, byte value) {
   //To avoid clogging up the system with redundant information.
   if(lastSent[axis] == value)
     return;
+
+  if(value == 255){
+    value -= 1;
+  }
   
   MAX.write((byte)0);
   delay(1);

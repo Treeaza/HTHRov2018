@@ -46,8 +46,8 @@ COMMUNICATION STRUCTURE:
 #define CHANNELCLAWTWO 8
 
 //Pins for connecting MAX485 to.
-#define MAXRXPin 10
-#define MAXTXPin 11
+#define MAXRXPin 13
+#define MAXTXPin 12
 #define MAXControl 3
 
 //Some constants to make serial direction control easier.
@@ -90,87 +90,97 @@ void setup(){
 }
 
 void loop(){
-  if(MAX.available()){
-    byte r;
-    while(MAX.available()){
-      r = MAX.read();
-      if(r == 0){
-        byte channel = MAX.read();
-        byte input = MAX.read();
-        decodeInput(channel, input);
-      }
+  while(MAX.available()){
+    byte r = MAX.read();
+    if(r == 0){
+      byte channel = MAX.read();
+      byte input = MAX.read();
+      decodeInput(channel, input);
     }
   }
+  /*
+  for(int i = 1; i < CHANNELS + 1; i++){
+    Serial.print(lastReceived[i]);
+    Serial.print(' ');
+  }
+  Serial.print('\n');
+  */
   setLevelMotors();
   setUDMotors();
+  setClawMotors();
   delay(5);
 }
 
 void setUDMotors(){
   analogWrite(MOTORUF, lastReceived[CHANNELUD]);
-  Serial.println("Front UD: " + String(lastReceived[CHANNELUD]));
+  //Serial.println("Front UD: " + String(lastReceived[CHANNELUD]));
   analogWrite(MOTORUB, lastReceived[CHANNELUD]);
-  Serial.println("Rear UD: " + String(lastReceived[CHANNELUD]));
+  //Serial.println("Rear UD: " + String(lastReceived[CHANNELUD]));
 }
 
 void setClawMotors(){
   analogWrite(VERTCLAW, lastReceived[CHANNELCLAWONE]);
-  Serial.println("Vertical Claw: " + String(lastReceived[CHANNELCLAWONE]));
+  //Serial.println("Vertical Claw: " + String(lastReceived[CHANNELCLAWONE]));
   analogWrite(HORZCLAW, lastReceived[CHANNELCLAWTWO]);
-  Serial.println("Horizontal Claw: " + String(lastReceived[CHANNELCLAWTWO]));
+  //Serial.println("Horizontal Claw: " + String(lastReceived[CHANNELCLAWTWO]));
 }
 
 void setLevelMotors(){
   //The Arduino's trig functions are all in radians because reasons.
-  float x = lastReceived[CHANNELLR] - 128;
-  float y = lastReceived[CHANNELFB] - 128;
+  float x = (lastReceived[CHANNELLR] - 128) / (float)128;
+  float y = (lastReceived[CHANNELFB] - 128) / (float)128;
   float theta = atan2(y, x);
-  float throttle = sqrt((x * x) + (y * y));
+  if(theta < 0){
+    theta += (2 * PI);
+  }
+  x *= (sqrt(2) / 2);
+  y *= (sqrt(2) / 2);
+  float throttle = 255 * sqrt((x * x) + (y * y));
   
+  int octrant;
+  if(theta < 23 && theta >= 337){
+    quadrant = 1;
+  }else if(theta >= 23 && theta < 68){
+    quadrant = 2;
+  }
+  /*
   //RF motor first:
   float motorTheta = PI / 4;
   float motorPower = calculateMotorPower(theta, motorTheta, throttle);
-  //Motorpower is in a range from ~-182 to ~182 because reasons I guess. Map it to 0-255.
-  motorPower = map(motorPower, -128, 128, 0, 255);
   analogWrite(MOTORRF, motorPower);
   Serial.println("Motor RF: " + String(motorPower));
 
   //LF motor next:
   motorTheta = (3 * PI) / 4;
   motorPower = calculateMotorPower(theta, motorTheta, throttle);
-  //Motorpower is in a range from ~-182 to ~182 because reasons I guess. Map it to 0-255.
-  motorPower = map(motorPower, -128, 128, 0, 255);
   analogWrite(MOTORLF, motorPower);
   Serial.println("Motor LF: " + String(motorPower));
 
   //LB motor next:
   motorTheta = (5 * PI) / 4;
   motorPower = calculateMotorPower(theta, motorTheta, throttle);
-  //Motorpower is in a range from ~-182 to ~182 because reasons I guess. Map it to 0-255.
-  motorPower = map(motorPower, -128, 128, 0, 255);
   analogWrite(MOTORLB, motorPower);
   Serial.println("Motor LB: " + String(motorPower));
 
   //RB motor next:
   motorTheta = (7 * PI) / 4;
   motorPower = calculateMotorPower(theta, motorTheta, throttle);
-  //Motorpower is in a range from ~-182 to ~182 because reasons I guess. Map it to 0-255.
-  motorPower = map(motorPower, -128, 128, 0, 255);
   analogWrite(MOTORRB, motorPower);
   Serial.println("Motor RB: " + String(motorPower));
+  */
 }
 
 float calculateMotorPower(float theta, float motorTheta, float throttle){
-  return throttle * (sin(theta - motorTheta));
+  return throttle * (float)(sin(abs(theta - motorTheta)));
 }
 
 void decodeInput(byte channel, byte input){
   //Something went wrong, this data is invalid.
-  if(channel <= 0 || input <= 0 || channel > CHANNELS){
+  if(channel <= 0 || input <= 0 || input == 255 || channel > CHANNELS){
     return;
   }
   lastReceived[channel] = input;
-
+  
   //Special case to handle claws, only one should run at a time.
   if(channel == CHANNELCLAWONE){
     analogWrite(HORZCLAW, 128);
