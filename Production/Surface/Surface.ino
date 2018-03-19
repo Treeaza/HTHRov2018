@@ -16,6 +16,7 @@ PINOUT:
  - 6 - Transmit to MAX
  - 3 - Control MAX
  - 7 - Connect to RST or the controller won't work.
+ - 4 - Connect to LED to show status.
 
 COMMUNICATION STRUCTURE:
 
@@ -62,6 +63,8 @@ COMMUNICATION STRUCTURE:
 #define CHANNELS 8
 #define LASTSENTRESETCOUNT 30
 
+#define STATUSLEDPIN 4
+
 //USB object to connect the shield, then use it to connect XBOX controller.
 USB Usb;
 XBOXUSB Xbox(&Usb);
@@ -72,9 +75,11 @@ SoftwareSerial MAX(MAXRXPin, MAXTXPin);
 bool autoLevelOn = true;
 
 void setup(){
-  //Set 485 to transmit. We never actually need to recieve, but it's nice to have the option.
+  //Set 485 to transmit. We never actually need to receive, but it's nice to have the option.
   Serial.begin(9600);
   pinMode(MAXControl, OUTPUT);
+  pinMode(STATUSLEDPIN, OUTPUT);
+  digitalWrite(STATUSLEDPIN, LOW);
   digitalWrite(MAXControl, MAXTX);
   //Start the connection. Baud rate doesn't really matter that much here.
   MAX.begin(4800);
@@ -90,6 +95,8 @@ bool claw = false;
 byte lastSent[] = {0, 0, 0, 0, 0, 0, 0, 0, 0};
 
 void loop(){
+  //If we got here, it all initialized properly.
+  digitalWrite(STATUSLEDPIN, HIGH);
   //Does...something with the shield? I've yet to work out exactly what, but it's important.
   Usb.Task();
   if(Xbox.Xbox360Connected) {

@@ -1,6 +1,6 @@
 #include <SoftwareSerial.h>
 
-#define SSerialRX 11
+#define SSerialRX 13
 #define SSerialTX 12
 #define SSerialTxControl 3
 

@@ -8,7 +8,15 @@ through the pins listed below, as well as motor controllers, again as listed.
 
 PINOUT:
 
-[TODO]
+  - 13 - Receive from MAX
+  - 12 - Transmit to MAX
+  - 3 - Control MAX
+  - 4 - LF motor
+  - 5 - RF motor
+  - 6 - RB motor
+  - 7 - LB motor
+  - 10 - Horizontal claw motor
+  - 11 - Vertical claw motor
 
 COMMUNICATION STRUCTURE:
 
