@@ -106,13 +106,6 @@ void loop(){
       decodeInput(channel, input);
     }
   }
-  /*
-  for(int i = 1; i < CHANNELS + 1; i++){
-    Serial.print(lastReceived[i]);
-    Serial.print(' ');
-  }
-  Serial.print('\n');
-  */
   setLevelMotors();
   setUDMotors();
   setClawMotors();
@@ -120,13 +113,23 @@ void loop(){
 }
 
 void setUDMotors(){
-  analogWrite(MOTORUF, lastReceived[CHANNELUD]);
-  //Serial.println("Front UD: " + String(lastReceived[CHANNELUD]));
-  analogWrite(MOTORUB, lastReceived[CHANNELUD]);
-  //Serial.println("Rear UD: " + String(lastReceived[CHANNELUD]));
+  //If no pitch control, just set the UD motors to whatever we read on UD.
+  if(lastReceived[CHANNELPITCH] == 128){
+    analogWrite(MOTORUF, lastReceived[CHANNELUD]);
+    //Serial.println("Front UD: " + String(lastReceived[CHANNELUD]));
+    analogWrite(MOTORUB, lastReceived[CHANNELUD]);
+    //Serial.println("Rear UD: " + String(lastReceived[CHANNELUD]));
+  }else{
+    //If we are running a pitch control, ignore UD and instead just go with the pitch.
+    analogWrite(MOTORUF, abs(lastReceived[CHANNELPITCH] - 254));
+    //Serial.println("Front UD: " + String(abs(lastReceived[CHANNELPITCH] - 254)));
+    analogWrite(MOTORUB, lastReceived[CHANNELPITCH]);
+    //Serial.println("Rear UD: " + String(lastReceived[CHANNELPITCH]));
+  }
 }
 
 void setClawMotors(){
+  //Remarkably, this all functions pretty much correctly.
   analogWrite(VERTCLAW, lastReceived[CHANNELCLAWONE]);
   //Serial.println("Vertical Claw: " + String(lastReceived[CHANNELCLAWONE]));
   analogWrite(HORZCLAW, lastReceived[CHANNELCLAWTWO]);
@@ -135,21 +138,19 @@ void setClawMotors(){
 
 void setLevelMotors(){
   //The Arduino's trig functions are all in radians because reasons.
-  float x = (lastReceived[CHANNELLR] - 128) / (float)128;
-  float y = (lastReceived[CHANNELFB] - 128) / (float)128;
-  float theta = atan2(y, x);
-  if(theta < 0){
+  double x = (lastReceived[CHANNELLR] - 128);
+  double y = (lastReceived[CHANNELFB] - 128);
+  double theta = atan2(y, x);
+  while(theta < 0){
     theta += (2 * PI);
   }
-  x *= (sqrt(2) / 2);
-  y *= (sqrt(2) / 2);
-  float throttle = 255 * sqrt((x * x) + (y * y));
-  
+  double throttle = sqrt((x * x) + (y * y));
+  Serial.println(throttle);
   int octrant;
   if(theta < 23 && theta >= 337){
-    quadrant = 1;
+    octrant = 1;
   }else if(theta >= 23 && theta < 68){
-    quadrant = 2;
+    octrant = 2;
   }
   /*
   //RF motor first:
