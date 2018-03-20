@@ -115,24 +115,24 @@ void loop(){
 void setUDMotors(){
   //If no pitch control, just set the UD motors to whatever we read on UD.
   if(lastReceived[CHANNELPITCH] == 128){
-    analogWrite(MOTORUF, lastReceived[CHANNELUD]);
+    writeMotor(MOTORUF, lastReceived[CHANNELUD]);
     //Serial.println("Front UD: " + String(lastReceived[CHANNELUD]));
-    analogWrite(MOTORUB, lastReceived[CHANNELUD]);
+    writeMotor(MOTORUB, lastReceived[CHANNELUD]);
     //Serial.println("Rear UD: " + String(lastReceived[CHANNELUD]));
   }else{
     //If we are running a pitch control, ignore UD and instead just go with the pitch.
-    analogWrite(MOTORUF, abs(lastReceived[CHANNELPITCH] - 254));
+    writeMotor(MOTORUF, abs(lastReceived[CHANNELPITCH] - 254));
     //Serial.println("Front UD: " + String(abs(lastReceived[CHANNELPITCH] - 254)));
-    analogWrite(MOTORUB, lastReceived[CHANNELPITCH]);
+    writeMotor(MOTORUB, lastReceived[CHANNELPITCH]);
     //Serial.println("Rear UD: " + String(lastReceived[CHANNELPITCH]));
   }
 }
 
 void setClawMotors(){
   //Remarkably, this all functions pretty much correctly.
-  analogWrite(VERTCLAW, lastReceived[CHANNELCLAWONE]);
+  writeMotor(VERTCLAW, lastReceived[CHANNELCLAWONE]);
   //Serial.println("Vertical Claw: " + String(lastReceived[CHANNELCLAWONE]));
-  analogWrite(HORZCLAW, lastReceived[CHANNELCLAWTWO]);
+  writeMotor(HORZCLAW, lastReceived[CHANNELCLAWTWO]);
   //Serial.println("Horizontal Claw: " + String(lastReceived[CHANNELCLAWTWO]));
 }
 
@@ -144,43 +144,83 @@ void setLevelMotors(){
   while(theta < 0){
     theta += (2 * PI);
   }
+  theta *= (180 / PI);
   double throttle = sqrt((x * x) + (y * y));
-  Serial.println(throttle);
-  int octrant;
-  if(theta < 23 && theta >= 337){
-    octrant = 1;
+
+  //This great and terrible if statement determines which motors to turn on based on angle.
+  float lf = 0, rf = 0, lb = 0, rb = 0;
+  if(theta < 23 || theta >= 337){
+    rf = -1;
+    lb = -1;
+    rb = 1;
+    lf = 1;
   }else if(theta >= 23 && theta < 68){
-    octrant = 2;
+    rf = 0;
+    lb = 0;
+    rb = 1;
+    lf = 1;
+  }else if(theta >= 68 && theta < 113){
+    rf = 1;
+    lf = 1;
+    lb = 1;
+    rb = 1;
+  }else if(theta >= 113 && theta < 157){
+    lf = 0;
+    rb = 0;
+    lb = 1;
+    rf = 1;
+  }else if(theta >= 157 && theta < 202){
+    lf = -1;
+    rb = -1;
+    lb = 1;
+    rf = 1;
+  }else if(theta >= 202 && theta < 247){
+    lf = -1;
+    rb = -1;
+    lb = 0;
+    rf = 0;
+  }else if(theta >= 247 && theta < 293){
+    lf = -1;
+    rb = -1;
+    lb = -1;
+    rf = -1;
+  }else{
+    lf = 0;
+    rb = 0;
+    lb = -1;
+    rf = -1;
   }
-  /*
-  //RF motor first:
-  float motorTheta = PI / 4;
-  float motorPower = calculateMotorPower(theta, motorTheta, throttle);
-  analogWrite(MOTORRF, motorPower);
-  Serial.println("Motor RF: " + String(motorPower));
-
-  //LF motor next:
-  motorTheta = (3 * PI) / 4;
-  motorPower = calculateMotorPower(theta, motorTheta, throttle);
-  analogWrite(MOTORLF, motorPower);
-  Serial.println("Motor LF: " + String(motorPower));
-
-  //LB motor next:
-  motorTheta = (5 * PI) / 4;
-  motorPower = calculateMotorPower(theta, motorTheta, throttle);
-  analogWrite(MOTORLB, motorPower);
-  Serial.println("Motor LB: " + String(motorPower));
-
-  //RB motor next:
-  motorTheta = (7 * PI) / 4;
-  motorPower = calculateMotorPower(theta, motorTheta, throttle);
-  analogWrite(MOTORRB, motorPower);
-  Serial.println("Motor RB: " + String(motorPower));
-  */
+  lf *= throttle;
+  rf *= throttle;
+  rb *= throttle;
+  lb *= throttle;
+  
+  lf += 128;
+  rf += 128;
+  rb += 128;
+  lb += 128;
+  //Now we have to deal with rotation.
+  byte rotValue = lastReceived[CHANNELROTATION];
+  if(rotValue != 128){
+    Serial.println(rotValue);
+    lf = (lf + (255 - rotValue)) / 2;
+    lb = (lb + (255 - rotValue)) / 2;
+    rf = (rf + rotValue) / 2;
+    rb = (rb + rotValue) / 2;
+  }
+  writeMotor(MOTORLF, lf);
+  Serial.println("MOTORLF: " + String(lf));
+  writeMotor(MOTORRF, rf);
+  Serial.println("MOTORRF: " + String(rf));
+  writeMotor(MOTORLB, lb);
+  Serial.println("MOTORLB: " + String(lb));
+  writeMotor(MOTORRB, rb);
+  Serial.println("MOTORRB: " + String(rb));
+  
 }
 
-float calculateMotorPower(float theta, float motorTheta, float throttle){
-  return throttle * (float)(sin(abs(theta - motorTheta)));
+void writeMotor(int pin, float value){
+  analogWrite(pin, (int)constrain(value, 0, 255));
 }
 
 void decodeInput(byte channel, byte input){
@@ -192,10 +232,10 @@ void decodeInput(byte channel, byte input){
   
   //Special case to handle claws, only one should run at a time.
   if(channel == CHANNELCLAWONE){
-    analogWrite(HORZCLAW, 128);
+    writeMotor(HORZCLAW, 128);
     lastReceived[CHANNELCLAWTWO] = 128;
   }else if(channel == CHANNELCLAWTWO){
-    analogWrite(VERTCLAW, 128);
+    writeMotor(VERTCLAW, 128);
     lastReceived[CHANNELCLAWONE] = 128;
   }
 }
