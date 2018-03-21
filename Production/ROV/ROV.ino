@@ -202,11 +202,17 @@ void setLevelMotors(){
   //Now we have to deal with rotation.
   byte rotValue = lastReceived[CHANNELROTATION];
   if(rotValue != 128){
-    Serial.println(rotValue);
     lf = (lf + (255 - rotValue)) / 2;
     lb = (lb + (255 - rotValue)) / 2;
     rf = (rf + rotValue) / 2;
     rb = (rb + rotValue) / 2;
+  }
+  //Really hacky way to make sure we rotate at full power while not moving.
+  if(lastReceived[CHANNELLR] == 128 && lastReceived[CHANNELFB] == 128){
+    lf *= 2;
+    lb *= 2;
+    rf *= 2;
+    rb *= 2;
   }
   writeMotor(MOTORLF, lf);
   Serial.println("MOTORLF: " + String(lf));
