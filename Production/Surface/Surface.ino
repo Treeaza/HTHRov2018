@@ -175,6 +175,7 @@ void readAndSendAnalogHat(AnalogHatEnum a, byte channel){
   int value = Xbox.getAnalogHat(a);
     if(value > 8000 || value < -8000){
       byte mapped = map(value, -32768, 32768, 1, 254);
+      Serial.println(String(a) + ", " + String(mapped));
       sendCommand(channel, mapped);
     }else{
       sendCommand(channel, 128);
@@ -211,5 +212,7 @@ void sendCommand (byte axis, byte value) {
   MAX.write(axis);
   delay(1);
   MAX.write(value);
+
+  Serial.println(String(axis) + ", " + String(value));
 }
 

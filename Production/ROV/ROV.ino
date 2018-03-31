@@ -106,7 +106,12 @@ void loop(){
       decodeInput(channel, input);
     }
   }
-  setLevelMotors();
+  
+  //if(lastReceived[CHANNELLR] == 128 && lastReceived[CHANNELFB] == 128 && lastReceived[CHANNELROTATION] == 128){
+  //  setLevelMotorsRest();
+  //}else{
+    setLevelMotors();
+  //}
   setUDMotors();
   setClawMotors();
   delay(5);
@@ -134,6 +139,13 @@ void setClawMotors(){
   //Serial.println("Vertical Claw: " + String(lastReceived[CHANNELCLAWONE]));
   writeMotor(HORZCLAW, lastReceived[CHANNELCLAWTWO]);
   //Serial.println("Horizontal Claw: " + String(lastReceived[CHANNELCLAWTWO]));
+}
+
+void setLevelMotorsRest(){
+  writeMotor(MOTORLF, 130);
+  writeMotor(MOTORRF, 130);
+  writeMotor(MOTORLB, 126);
+  writeMotor(MOTORRB, 126);
 }
 
 void setLevelMotors(){
@@ -207,13 +219,7 @@ void setLevelMotors(){
     rf = (rf + rotValue) / 2;
     rb = (rb + rotValue) / 2;
   }
-  //Really hacky way to make sure we rotate at full power while not moving.
-  if(lastReceived[CHANNELLR] == 128 && lastReceived[CHANNELFB] == 128){
-    lf *= 2;
-    lb *= 2;
-    rf *= 2;
-    rb *= 2;
-  }
+  
   writeMotor(MOTORLF, lf);
   Serial.println("MOTORLF: " + String(lf));
   writeMotor(MOTORRF, rf);
@@ -226,6 +232,10 @@ void setLevelMotors(){
 }
 
 void writeMotor(int pin, float value){
+  value = (int)constrain(value, 0, 255);
+  if(value == 128){
+    value += 2;
+  }
   analogWrite(pin, (int)constrain(value, 0, 255));
 }
 
