@@ -32,8 +32,14 @@ COMMUNICATION STRUCTURE:
     4: Rotate left and right.
     5: Pitch forwards and backwards.
     6: Open and close claw.
-    7: Enable/disable auto level (should only ever be sent a 1 or a 2).
+    --DEPRECATED-- 7: Enable/disable auto level (should only ever be sent a 1 or a 2).
     8: Open and close claw 2.
+
+NOTE:
+
+  Due to rate-limiting things with the 485, if you provide too much input at once the controller may freeze,
+  apparently just as a result of trying to send too many data at once. To solve this, I recommend putting a pushbutton
+  on the Arduino's RST line to reset it when this happens.
 
 */
 
@@ -61,7 +67,7 @@ COMMUNICATION STRUCTURE:
 #define MAXRX LOW
 
 #define CHANNELS 8
-#define LASTSENTRESETCOUNT 30
+#define LASTSENTRESETCOUNT 500
 
 #define STATUSLEDPIN 4
 
@@ -72,17 +78,18 @@ XBOXUSB Xbox(&Usb);
 //Actual serial object.
 SoftwareSerial MAX(MAXRXPin, MAXTXPin);
 
-bool autoLevelOn = true;
+bool clawMode = true;
 
 void setup(){
   //Set 485 to transmit. We never actually need to receive, but it's nice to have the option.
-  Serial.begin(9600);
   pinMode(MAXControl, OUTPUT);
   pinMode(STATUSLEDPIN, OUTPUT);
   digitalWrite(STATUSLEDPIN, LOW);
   digitalWrite(MAXControl, MAXTX);
-  //Start the connection. Baud rate doesn't really matter that much here.
-  MAX.begin(4800);
+  //Start the connection. "Baud rate doesn't really matter that much here." - Jasper Rubin, 2018
+  //Later 2018 Jasper here to say it turns out baud rate is really f***ing important here.
+  //Higher is better, lower than this and the controller starts freezing up.
+  MAX.begin(74880);
   if (Usb.Init() == -1) {
     while (1);
   }
@@ -96,10 +103,12 @@ byte lastSent[] = {0, 0, 0, 0, 0, 0, 0, 0, 0};
 
 void loop(){
   //If we got here, it all initialized properly.
-  digitalWrite(STATUSLEDPIN, HIGH);
   //Does...something with the shield? I've yet to work out exactly what, but it's important.
   Usb.Task();
   if(Xbox.Xbox360Connected) {
+    
+    digitalWrite(STATUSLEDPIN, HIGH);
+    
     //Periodically reset lastSent, to ensure fresh info every few seconds at least.
     lastSentResetCounter--;
     if(lastSentResetCounter <= 0){
@@ -119,44 +128,31 @@ void loop(){
     //Right stick is all planar controls.
     readAndSendAnalogHat(RightHatX, CHANNELLR);
     readAndSendAnalogHat(RightHatY, CHANNELFB);
-    
+   
     //The triggers work subtracted from each other to actuate the claw.
     readAndSendSubtractiveTriggers(claw? CHANNELCLAWONE: CHANNELCLAWTWO);
 
-    //Change auto level mode.
+    //Change claw mode.
     if(Xbox.getButtonClick(A)){
-      autoLevelOn = !autoLevelOn;
-    }
-
-    //Change which claw is being controlled.
-    if(Xbox.getButtonClick(X)){
       claw = !claw;
     }
+    setClawModeDisplay(claw);
 
     //Tilting and autolevel.
     bool up = Xbox.getButtonPress(UP);
     bool down = Xbox.getButtonPress(DOWN);
-    
+   
     char tiltOneZero = up - down;
     byte tilt = map(tiltOneZero, -1, 1, 1, 255);
 
     sendCommand(5, tilt);
-
-    if(up || down){
-      sendCommand(CHANNELAUTOLEVEL, 1);
-      setAutoLevelDisplay(false);
-    }else{
-      sendCommand(CHANNELAUTOLEVEL, autoLevelOn? 2: 1);
-      setAutoLevelDisplay(autoLevelOn);
-    }
-    
   }
-  delay(15);
+  delay(1);
 }
 
 bool previousDisplay = false;
 
-void setAutoLevelDisplay(bool on){
+void setClawModeDisplay(bool on){
   if(on != previousDisplay){
     Xbox.setLedOff();
     if(on){
@@ -164,7 +160,6 @@ void setAutoLevelDisplay(bool on){
     }else{
       Xbox.setLedOn(LED3);
     }
-      Serial.println("ftb");
     previousDisplay = on;
   }
 }
@@ -173,13 +168,12 @@ void readAndSendAnalogHat(AnalogHatEnum a, byte channel){
   //Read an analog hat, map it, and transmit it.
   //If it falls in the buffer zone, send 128 (the middle value).
   int value = Xbox.getAnalogHat(a);
-    if(value > 8000 || value < -8000){
-      byte mapped = map(value, -32768, 32768, 1, 254);
-      Serial.println(String(a) + ", " + String(mapped));
-      sendCommand(channel, mapped);
-    }else{
-      sendCommand(channel, 128);
-    }
+  if(value > 8000 || value < -8000){
+    byte mapped = map(value, -32768, 32768, 1, 254);
+    sendCommand(channel, mapped);
+  }else{
+    sendCommand(channel, 128);
+  }
 }
 
 void readAndSendSubtractiveTriggers(byte channel){
@@ -200,6 +194,7 @@ void sendCommand (byte axis, byte value) {
     return;
 
   //To avoid clogging up the system with redundant information.
+  
   if(lastSent[axis] == value)
     return;
 
@@ -212,7 +207,7 @@ void sendCommand (byte axis, byte value) {
   MAX.write(axis);
   delay(1);
   MAX.write(value);
-
-  Serial.println(String(axis) + ", " + String(value));
+  
+  lastSent[axis] = value;
 }
 

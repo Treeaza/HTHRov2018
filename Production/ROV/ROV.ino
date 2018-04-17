@@ -1,7 +1,7 @@
 /*
 Copyright 2018, Jasper Rubin
 Written for Holy Trinity High's Underwater Robotics Team
-All rights to the code lie with them.s
+All rights to the code lie with them.
 
 This program is written to run on an Arduino Mega or similar with a MAX485 connected
 through the pins listed below, as well as motor controllers, again as listed.
@@ -35,9 +35,8 @@ COMMUNICATION STRUCTURE:
     4: Rotate left and right.
     5: Pitch forwards and backwards.
     6: Open and close claw.
-    7: Enable/disable auto level (should only ever be sent a 1 or a 2).
+    --DEPRECATED-- 7: Enable/disable auto level (should only ever be sent a 1 or a 2).
     8: Open and close claw 2.
-    9. Change LED mode.
 
 */
 
@@ -76,6 +75,8 @@ COMMUNICATION STRUCTURE:
 #define HORZCLAW 10
 #define VERTCLAW 11
 
+#define LEDPIN 3
+
 int motorPins[] = {MOTORLF, MOTORRF, MOTORRB, MOTORLB, MOTORUF, MOTORUB, HORZCLAW, VERTCLAW};
 int motorCount = 8;
 int thrusterPins[] = {MOTORLF, MOTORRF, MOTORRB, MOTORLB, MOTORUF, MOTORUB};
@@ -88,16 +89,17 @@ SoftwareSerial MAX(MAXRXPin, MAXTXPin);
 void setup(){
   //Set 485 to receive. We never actually need to transmit, but it's nice to have the option.
   pinMode(MAXControl, OUTPUT);
+  pinMode(LEDPIN, OUTPUT);
   digitalWrite(MAXControl, MAXRX);
-  MAX.begin(4800);
-  Serial.begin(9600);
-
+  MAX.begin(74880);
+  
   for(int i = 0; i < 8; i++){
     pinMode(motorPins[i], OUTPUT);
   }
 }
 
 void loop(){
+  digitalWrite(LEDPIN, HIGH);
   while(MAX.available()){
     byte r = MAX.read();
     if(r == 0){
@@ -107,11 +109,7 @@ void loop(){
     }
   }
   
-  //if(lastReceived[CHANNELLR] == 128 && lastReceived[CHANNELFB] == 128 && lastReceived[CHANNELROTATION] == 128){
-  //  setLevelMotorsRest();
-  //}else{
-    setLevelMotors();
-  //}
+  setLevelMotors();
   setUDMotors();
   setClawMotors();
   delay(5);
@@ -121,31 +119,18 @@ void setUDMotors(){
   //If no pitch control, just set the UD motors to whatever we read on UD.
   if(lastReceived[CHANNELPITCH] == 128){
     writeMotor(MOTORUF, lastReceived[CHANNELUD]);
-    //Serial.println("Front UD: " + String(lastReceived[CHANNELUD]));
     writeMotor(MOTORUB, lastReceived[CHANNELUD]);
-    //Serial.println("Rear UD: " + String(lastReceived[CHANNELUD]));
   }else{
     //If we are running a pitch control, ignore UD and instead just go with the pitch.
     writeMotor(MOTORUF, abs(lastReceived[CHANNELPITCH] - 254));
-    //Serial.println("Front UD: " + String(abs(lastReceived[CHANNELPITCH] - 254)));
     writeMotor(MOTORUB, lastReceived[CHANNELPITCH]);
-    //Serial.println("Rear UD: " + String(lastReceived[CHANNELPITCH]));
   }
 }
 
 void setClawMotors(){
   //Remarkably, this all functions pretty much correctly.
   writeMotor(VERTCLAW, lastReceived[CHANNELCLAWONE]);
-  //Serial.println("Vertical Claw: " + String(lastReceived[CHANNELCLAWONE]));
   writeMotor(HORZCLAW, lastReceived[CHANNELCLAWTWO]);
-  //Serial.println("Horizontal Claw: " + String(lastReceived[CHANNELCLAWTWO]));
-}
-
-void setLevelMotorsRest(){
-  writeMotor(MOTORLF, 130);
-  writeMotor(MOTORRF, 130);
-  writeMotor(MOTORLB, 126);
-  writeMotor(MOTORRB, 126);
 }
 
 void setLevelMotors(){
@@ -221,13 +206,9 @@ void setLevelMotors(){
   }
   
   writeMotor(MOTORLF, lf);
-  Serial.println("MOTORLF: " + String(lf));
   writeMotor(MOTORRF, rf);
-  Serial.println("MOTORRF: " + String(rf));
   writeMotor(MOTORLB, lb);
-  Serial.println("MOTORLB: " + String(lb));
   writeMotor(MOTORRB, rb);
-  Serial.println("MOTORRB: " + String(rb));
   
 }
 
