@@ -87,6 +87,7 @@ byte lastReceived[] = {0, 0, 0, 0, 0, 0, 0, 0, 0};
 SoftwareSerial MAX(MAXRXPin, MAXTXPin);
 
 void setup(){
+  //Serial.begin(9600);
   //Set 485 to receive. We never actually need to transmit, but it's nice to have the option.
   pinMode(MAXControl, OUTPUT);
   pinMode(LEDPIN, OUTPUT);
@@ -129,8 +130,9 @@ void setUDMotors(){
 
 void setClawMotors(){
   //Remarkably, this all functions pretty much correctly.
-  writeMotor(VERTCLAW, lastReceived[CHANNELCLAWONE]);
-  writeMotor(HORZCLAW, lastReceived[CHANNELCLAWTWO]);
+  //One caveat: claws are jamming shut, so we're cutting claw power by 2 to try and fix this.
+  writeMotor(VERTCLAW, (((lastReceived[CHANNELCLAWONE] - 128) / 2) + 128));
+  writeMotor(HORZCLAW, (((lastReceived[CHANNELCLAWTWO] - 128) / 2) + 128));
 }
 
 void setLevelMotors(){
@@ -143,9 +145,9 @@ void setLevelMotors(){
   }
   theta *= (180 / PI);
   double throttle = sqrt((x * x) + (y * y));
-
+  Serial.println(String(theta));
   //This great and terrible if statement determines which motors to turn on based on angle.
-  float lf = 0, rf = 0, lb = 0, rb = 0;
+  int lf = 0, rf = 0, lb = 0, rb = 0;
   if(theta < 23 || theta >= 337){
     rf = -1;
     lb = -1;
@@ -196,7 +198,9 @@ void setLevelMotors(){
   rf += 128;
   rb += 128;
   lb += 128;
+  //Serial.println("LF:" + String(lf) + ", RF:" + String(rf) + ", LB:" + String(lb) + ", RB:" + String(rb));
   //Now we have to deal with rotation.
+  
   byte rotValue = lastReceived[CHANNELROTATION];
   if(rotValue != 128){
     lf = (lf + (255 - rotValue)) / 2;
