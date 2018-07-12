@@ -1,3 +1,8 @@
+//This code was written by, and is owned by, Jasper K. Rubin.
+//Copyright 2018, All Rights Reserved.
+//If you are using this code and are not Jasper Rubin, and don't have my permission, I'm mildly annoyed with you.
+//If you are using this code and are not Jasper Rubin, and do have my permission, I'm still mildly annoyed with you.
+
 #include <SoftwareSerial.h>
 #include <XBOXUSB.h>
 #include <SPI.h>
