@@ -1,12 +1,8 @@
-<<<<<<< HEAD
-<<<<<<< HEAD
 //This code was written by, and is owned by, Jasper K. Rubin.
 //Copyright 2018, All Rights Reserved.
 //If you are using this code and are not Jasper Rubin, and don't have my permission, I'm mildly annoyed with you.
 //If you are using this code and are not Jasper Rubin, and do have my permission, I'm still mildly annoyed with you.
-=======
-=======
->>>>>>> parent of abe886b... Update ROV.ino
+
 /*
 Copyright 2018, Jasper Rubin
 Written for Holy Trinity High's Underwater Robotics Team
@@ -48,10 +44,6 @@ COMMUNICATION STRUCTURE:
     8: Open and close claw 2.
 
 */
-<<<<<<< HEAD
->>>>>>> parent of abe886b... Update ROV.ino
-=======
->>>>>>> parent of abe886b... Update ROV.ino
 
 #include <SoftwareSerial.h>
 
